@@ -1,50 +1,45 @@
 // ==UserScript==
 // @name         Alejandro Juega - W Place Blue Marble
 // @namespace    http://yourdomain.com/
-// @version      1.0
-// @description  Interfaz W Place AI estilo Blue Marble con dibujo automático
+// @version      1.1
+// @description  W Place AI estilo Blue Marble solo en wplace.live
 // @author       Tu Nombre
-// @match        *://*/*
+// @match        https://wplace.live/*
 // @grant        none
-// @run-at       document-end
+// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    // --- Evitar duplicados si se recarga la página ---
+    if(document.getElementById('wgCanvas')) return;
+
     // --- Crear CSS ---
     const style = document.createElement('style');
     style.textContent = `
-    body {
-        font-family: 'Courier New', monospace !important;
-    }
     #wgCanvas {
-        position: absolute; top:0; left:0; z-index:0;
+        position: fixed; top:0; left:0; z-index:9990;
+        pointer-events:none; /* permite interactuar con la página */
     }
     #wgOverlay {
-        position: fixed; top:0; left:0; width:100%; height:100%;
+        position: fixed; top:10px; left:10px;
         background: rgba(0,0,50,0.85);
-        display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-        padding-top:50px;
-        z-index:10000;
-        border:5px solid #00ffcc;
-        border-radius:15px;
+        padding: 15px; border:3px solid #00ffcc; border-radius:12px;
+        z-index:9999;
+        font-family: 'Courier New', monospace;
     }
-    #wgContainer { display:flex; flex-direction:column; align-items:center; }
-    #wgContainer h1 { font-size:3em; margin-bottom:40px; text-shadow:0 0 10px #00ffcc; }
-    #wgContainer button {
-        display:block; width:200px; margin:10px auto; padding:15px; font-size:1.2em;
-        cursor:pointer; background-color: rgba(0,31,77,0.7);
-        color:#00ffcc; border:2px solid #00ffcc; border-radius:12px;
-        transition:0.3s; text-shadow:0 0 5px #00ffcc;
+    #wgOverlay h1 { font-size:1.5em; color:#00ffcc; margin:5px; text-shadow:0 0 5px #00ffcc; }
+    #wgOverlay button {
+        display:block; width:150px; margin:5px 0; padding:8px;
+        background: rgba(0,31,77,0.7); color:#00ffcc; border:2px solid #00ffcc; border-radius:8px;
+        cursor:pointer; font-size:1em; text-shadow:0 0 3px #00ffcc;
     }
-    #wgContainer button:hover { background-color: rgba(0,51,102,0.8); }
-    #wgContainer input {
-        padding:10px; margin:10px; width:150px; border-radius:8px;
-        border:1px solid #00ffcc; background-color: rgba(0,15,42,0.8); color:#00ffcc;
-    }
-    #wgToggleButtons {
-        position: fixed; top:10px; right:10px; display:flex; flex-direction:column; gap:5px; z-index:10001;
+    #wgOverlay button:hover { background: rgba(0,51,102,0.8); }
+    #wgOverlay input {
+        width:100px; margin:3px 0; padding:5px;
+        border:1px solid #00ffcc; border-radius:5px;
+        background: rgba(0,15,42,0.8); color:#00ffcc;
     }
     `;
     document.head.appendChild(style);
@@ -54,49 +49,45 @@
     canvas.id = 'wgCanvas';
     document.body.appendChild(canvas);
     const ctx = canvas.getContext('2d');
-
     function resizeCanvas(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
-    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
     // --- Crear UI Overlay ---
     const overlay = document.createElement('div');
     overlay.id = 'wgOverlay';
     overlay.innerHTML = `
-        <div id="wgContainer">
-            <h1>Alejandro Juega</h1>
-            <button id="wgUploadTemplateBtn">Upload Template Page</button>
-            <input type="file" id="wgUploadImage" accept="image/*">
-            <label for="wgUploadImage" style="cursor:pointer;">Upload Image</label>
-            <div style="margin-top:30px;">
-                <input type="number" id="wgXCoord" placeholder="Coordenada X">
-                <input type="number" id="wgYCoord" placeholder="Coordenada Y">
-            </div>
-            <button id="wgStartBtn">Start</button>
+        <h1>Alejandro Juega</h1>
+        <button id="wgUploadTemplateBtn">Upload Template Page</button>
+        <input type="file" id="wgUploadImage" accept="image/*">
+        <label for="wgUploadImage">Upload Image</label>
+        <div>
+            <input type="number" id="wgXCoord" placeholder="X">
+            <input type="number" id="wgYCoord" placeholder="Y">
         </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // --- Crear Botones de Toggle ---
-    const toggleDiv = document.createElement('div');
-    toggleDiv.id = 'wgToggleButtons';
-    toggleDiv.innerHTML = `
+        <button id="wgStartBtn">Start</button>
         <button id="wgHideBtn">Hide UI</button>
         <button id="wgShowBtn">Show UI</button>
     `;
-    document.body.appendChild(toggleDiv);
+    document.body.appendChild(overlay);
 
-    // --- Funciones de Toggle ---
-    document.getElementById('wgHideBtn').addEventListener('click', ()=> overlay.style.display='none');
-    document.getElementById('wgShowBtn').addEventListener('click', ()=> overlay.style.display='flex');
+    const wgOverlay=document.getElementById('wgOverlay');
+    const wgUploadTemplateBtn=document.getElementById('wgUploadTemplateBtn');
+    const wgUploadImage=document.getElementById('wgUploadImage');
+    const wgStartBtn=document.getElementById('wgStartBtn');
+    const wgHideBtn=document.getElementById('wgHideBtn');
+    const wgShowBtn=document.getElementById('wgShowBtn');
 
-    // --- Abrir template page ---
-    document.getElementById('wgUploadTemplateBtn').addEventListener('click', ()=>{
+    wgHideBtn.addEventListener('click', ()=> wgOverlay.style.display='none');
+    wgShowBtn.addEventListener('click', ()=> wgOverlay.style.display='block');
+
+    wgUploadTemplateBtn.addEventListener('click', ()=> {
         window.open('https://pepoafonso.github.io/color%20converter/wplace/','_blank');
     });
 
-    // --- Manejo de imágenes ---
+    // --- Manejo de templates ---
     let templates=[];
-    document.getElementById('wgUploadImage').addEventListener('change', e=>{
+    wgUploadImage.addEventListener('change', e=>{
         const file=e.target.files[0];
         if(file){
             const img=new Image();
@@ -112,7 +103,7 @@
     }
 
     // --- Dibujo automático ---
-    document.getElementById('wgStartBtn').addEventListener('click', ()=>{
+    wgStartBtn.addEventListener('click', ()=>{
         if(templates.length===0){ alert("Sube al menos un template"); return; }
 
         const startX=parseInt(document.getElementById('wgXCoord').value);
@@ -138,5 +129,4 @@
             }, 5);
         });
     });
-
 })();
